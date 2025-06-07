@@ -3,6 +3,17 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'nfc_module_method_channel.dart';
 import 'nfc_result.dart';
 
+class NfcReadTarget {
+  const NfcReadTarget({required this.sectorIndex, required this.blockIndex});
+  final int sectorIndex;
+  final int blockIndex;
+
+  Map<String, int> toMap() => {
+    'sectorIndex': sectorIndex,
+    'blockIndex': blockIndex,
+  };
+}
+
 abstract class NfcModulePlatform extends PlatformInterface {
   /// Constructs a NfcModulePlatform.
   NfcModulePlatform() : super(token: _token);
@@ -63,5 +74,14 @@ abstract class NfcModulePlatform extends PlatformInterface {
 
   void dispose() {
     throw UnimplementedError('dispose() has not been implemented.');
+  }
+
+  Future<String> prepareReadMultipleBlocks({
+    required List<NfcReadTarget> targets,
+    required String keyHex,
+  }) {
+    throw UnimplementedError(
+      'prepareReadMultipleBlocks() has not been implemented.',
+    );
   }
 }

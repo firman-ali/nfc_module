@@ -42,6 +42,13 @@ class MethodChannelNfcModule extends NfcModulePlatform {
             NfcResetSuccess(sectorsReset: args['sectorsReset'] as int),
           );
           break;
+        case 'onMultiReadResult':
+          final rawResults = args['results'] as List<Object?>;
+          final results = rawResults
+              .map((item) => Map<String, dynamic>.from(item as Map))
+              .toList();
+          _nfcStreamController?.add(NfcMultiBlockReadSuccess(results: results));
+          break;
         case 'onError':
           _nfcStreamController?.add(
             NfcError(
@@ -95,6 +102,18 @@ class MethodChannelNfcModule extends NfcModulePlatform {
   @override
   Future<String> prepareResetCard({required String keyHex}) async {
     return await methodChannel.invokeMethod('prepareResetCard', {
+      'keyHex': keyHex,
+    });
+  }
+
+  @override
+  Future<String> prepareReadMultipleBlocks({
+    required List<NfcReadTarget> targets,
+    required String keyHex,
+  }) async {
+    final targetMaps = targets.map((t) => t.toMap()).toList();
+    return await methodChannel.invokeMethod('prepareReadMultipleBlocks', {
+      'targets': targetMaps,
       'keyHex': keyHex,
     });
   }
