@@ -51,6 +51,8 @@ class _NfcReadWriteScreenState extends State<NfcReadWriteScreen> {
             break;
           case NfcMultiBlockReadSuccess():
             throw UnimplementedError();
+          case NfcMultiBlockWriteSuccess():
+            throw UnimplementedError();
         }
       });
     });

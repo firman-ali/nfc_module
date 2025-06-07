@@ -3,18 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:nfc_module/nfc_module.dart';
 
-class NfcReadMultipleDataScreen extends StatefulWidget {
-  const NfcReadMultipleDataScreen({super.key});
+class NfcWriteMultipleDataScreen extends StatefulWidget {
+  const NfcWriteMultipleDataScreen({super.key});
 
   @override
-  State<NfcReadMultipleDataScreen> createState() =>
-      _NfcReadMultipleDataScreenState();
+  State<NfcWriteMultipleDataScreen> createState() =>
+      _NfcWriteMultipleDataScreenState();
 }
 
-class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
+class _NfcWriteMultipleDataScreenState
+    extends State<NfcWriteMultipleDataScreen> {
   final NfcModule _nfcModule = NfcModule();
   StreamSubscription<NfcEvent>? _nfcSubscription;
-  List<Map<String, dynamic>> _multiReadResults = [];
+  List<Map<String, dynamic>> _multiOpResults = [];
 
   String _status = 'Selamat datang!';
   String _result = '-';
@@ -33,6 +34,7 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
     _nfcModule.initializeNfc();
     _nfcSubscription = _nfcModule.onNfcEvent?.listen((event) {
       if (!mounted) return;
+      _multiOpResults = [];
       setState(() {
         switch (event) {
           case NfcReadSuccess():
@@ -42,12 +44,13 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
           case NfcResetSuccess():
             throw UnimplementedError();
           case NfcMultiBlockReadSuccess():
-            _status = 'Sukses Membaca Banyak Blok';
-            _result = 'Lihat detail hasil di bawah.';
-            _multiReadResults = event.results;
-            break;
-          case NfcMultiBlockWriteSuccess():
             throw UnimplementedError();
+          case NfcMultiBlockWriteSuccess():
+          case NfcMultiBlockWriteSuccess():
+            _status = 'Selesai Menulis ke Banyak Blok';
+            _result = 'Lihat detail hasil di bawah.';
+            _multiOpResults = event.results;
+            break;
           case NfcError():
             _status = 'Error: ${event.errorCode}';
             _result = event.errorMessage;
@@ -67,29 +70,66 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
     super.dispose();
   }
 
-  void _prepareMultiRead() async {
+  void _prepareMultiWrite() async {
+    // Daftar target tulis yang di-hardcode untuk demonstrasi
     final targets = [
-      const NfcReadTarget(sectorIndex: 1, blockIndex: 0),
-      const NfcReadTarget(sectorIndex: 1, blockIndex: 1),
-      const NfcReadTarget(sectorIndex: 2, blockIndex: 0),
-      const NfcReadTarget(
-        sectorIndex: 5,
+      const NfcWriteTarget(
+        sectorIndex: 1,
         blockIndex: 0,
-      ), // Contoh sektor yang mungkin gagal
+        dataHex: "AABBCCDDEEFFAABBCCDDEEFFAABBCCDD",
+      ),
+      const NfcWriteTarget(
+        sectorIndex: 1,
+        blockIndex: 1,
+        dataHex: "11223344556677889900112233445566",
+      ),
+      const NfcWriteTarget(
+        sectorIndex: 1,
+        blockIndex: 2,
+        dataHex: "00000000000000000000000000000000",
+      ),
+      // Contoh target yang akan gagal karena melanggar aturan keamanan
+      const NfcWriteTarget(
+        sectorIndex: 1,
+        blockIndex: 3,
+        dataHex: "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
+      ),
     ];
 
-    try {
-      final message = await _nfcModule.prepareReadMultipleBlocks(
-        targets: targets,
-        keyHex: _defaultKey,
-      );
-      setState(() {
-        _status = message;
-        _result = 'Menunggu tag...';
-        _multiReadResults = [];
-      });
-    } catch (e) {
-      setState(() => _status = 'Error: $e');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Konfirmasi Tulis Ganda'),
+        content: Text(
+          'Anda akan menulis ke ${targets.length} blok. Tindakan ini akan menimpa data yang ada. Lanjutkan?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Ya, Tulis'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final message = await _nfcModule.prepareWriteMultipleBlocks(
+          targets: targets,
+          keyHex: _defaultKey,
+        );
+        setState(() {
+          _status = message;
+          _result = 'Menunggu tag...';
+          _multiOpResults = [];
+        });
+      } catch (e) {
+        setState(() => _status = 'Error: $e');
+      }
     }
   }
 
@@ -139,13 +179,13 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
               ),
               const SizedBox(height: 16),
               // Result Panel
-              if (_multiReadResults.isNotEmpty) _buildMultiReadResultView(),
+              if (_multiOpResults.isNotEmpty) _buildMultiOpResultView(),
               const SizedBox(height: 24),
               // Action Buttons
               ElevatedButton.icon(
                 icon: const Icon(Icons.chrome_reader_mode_outlined),
-                label: const Text('Baca Multiple Blok'),
-                onPressed: _prepareMultiRead,
+                label: const Text('Tulis Multiple Blok'),
+                onPressed: _prepareMultiWrite,
               ),
               const SizedBox(height: 8),
               TextButton.icon(
@@ -161,7 +201,7 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
     );
   }
 
-  Widget _buildMultiReadResultView() {
+  Widget _buildMultiOpResultView() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -173,10 +213,11 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: _multiReadResults.length,
+          itemCount: _multiOpResults.length,
           itemBuilder: (context, index) {
-            final item = _multiReadResults[index];
+            final item = _multiOpResults[index];
             final bool success = item['success'];
+            final bool isRead = item.containsKey('dataHex');
             return Card(
               color: success
                   ? Colors.green.withOpacity(0.1)
@@ -190,7 +231,9 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
                 title: Text('Sektor ${item['sector']}, Blok ${item['block']}'),
                 subtitle: Text(
                   success
-                      ? 'Data: ${item['dataHex']}'
+                      ? (isRead
+                            ? 'Baca: ${item['dataHex']}'
+                            : 'Tulis: Berhasil')
                       : 'Error: ${item['error']}',
                   style: const TextStyle(fontFamily: 'monospace'),
                 ),

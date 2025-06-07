@@ -5,6 +5,7 @@ import 'package:nfc_module/nfc_module.dart';
 import 'nfc_read_multiple_data_screen.dart';
 import 'nfc_read_write_screen.dart';
 import 'nfc_reset_screen.dart';
+import 'nfc_write_multiple_data_screen.dart';
 
 class NfcHome extends StatefulWidget {
   const NfcHome({super.key});
@@ -87,6 +88,19 @@ class _NfcHomeState extends State<NfcHome> {
               );
             },
             child: Text("NFC Multiple Read Data Page"),
+          ),
+          SizedBox(height: 16.0),
+
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NfcWriteMultipleDataScreen(),
+                ),
+              );
+            },
+            child: Text("NFC Multiple Write Data Page"),
           ),
         ],
       ),
