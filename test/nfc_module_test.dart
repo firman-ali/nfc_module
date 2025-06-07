@@ -59,6 +59,14 @@ class MockNfcModulePlatform
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<String> prepareWriteMultipleBlocks({
+    required List<NfcWriteTarget> targets,
+    required String keyHex,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 void main() {

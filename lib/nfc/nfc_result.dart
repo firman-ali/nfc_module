@@ -37,3 +37,8 @@ class NfcMultiBlockReadSuccess extends NfcEvent {
   const NfcMultiBlockReadSuccess({required this.results});
   final List<Map<String, dynamic>> results;
 }
+
+class NfcMultiBlockWriteSuccess extends NfcEvent {
+  const NfcMultiBlockWriteSuccess({required this.results});
+  final List<Map<String, dynamic>> results;
+}

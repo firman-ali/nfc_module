@@ -60,10 +60,8 @@ class _NfcResetScreenState extends State<NfcResetScreen> {
         switch (event) {
           case NfcReadSuccess():
             throw UnimplementedError();
-            break;
           case NfcWriteSuccess():
             throw UnimplementedError();
-            break;
           case NfcResetSuccess():
             _status = 'Kartu Berhasil Direset!';
             _result = '${event.sectorsReset} sektor telah dikosongkan.';
@@ -73,6 +71,8 @@ class _NfcResetScreenState extends State<NfcResetScreen> {
             _result = event.errorMessage;
             break;
           case NfcMultiBlockReadSuccess():
+            throw UnimplementedError();
+          case NfcMultiBlockWriteSuccess():
             throw UnimplementedError();
         }
       });

@@ -52,6 +52,16 @@ class NfcModule {
     );
   }
 
+  Future<String> prepareWriteMultipleBlocks({
+    required List<NfcWriteTarget> targets,
+    required String keyHex,
+  }) {
+    return NfcModulePlatform.instance.prepareWriteMultipleBlocks(
+      targets: targets,
+      keyHex: keyHex,
+    );
+  }
+
   Future<void> cancelOperation() {
     return NfcModulePlatform.instance.cancelOperation();
   }
