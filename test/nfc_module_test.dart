@@ -1,8 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nfc_module/nfc_module.dart';
-import 'package:nfc_module/nfc_module_method_channel.dart';
-import 'package:nfc_module/nfc_module_platform_interface.dart';
-import 'package:nfc_module/nfc_result.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 class MockNfcModulePlatform
@@ -52,6 +49,14 @@ class MockNfcModulePlatform
 
   @override
   Future<String> prepareResetCard({required String keyHex}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<String> prepareReadMultipleBlocks({
+    required List<NfcReadTarget> targets,
+    required String keyHex,
+  }) {
     throw UnimplementedError();
   }
 }

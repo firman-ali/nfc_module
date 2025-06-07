@@ -32,3 +32,8 @@ class NfcError extends NfcEvent {
   final String errorCode;
   final String errorMessage;
 }
+
+class NfcMultiBlockReadSuccess extends NfcEvent {
+  const NfcMultiBlockReadSuccess({required this.results});
+  final List<Map<String, dynamic>> results;
+}
