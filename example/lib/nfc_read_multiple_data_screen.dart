@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:nfc_module/nfc_module.dart';
@@ -19,7 +20,14 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
   String _status = 'Selamat datang!';
   String _result = '-';
   String _progressStatus = '';
-  final String _defaultKey = "FFFFFFFFFFFF";
+  final Uint8List _defaultKey = Uint8List.fromList([
+    0xFF,
+    0xFF,
+    0xFF,
+    0xFF,
+    0xFF,
+    0xFF,
+  ]);
   final TextEditingController _sectorController = TextEditingController(
     text: '1',
   );
@@ -84,7 +92,7 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
     try {
       final message = await _nfcModule.prepareReadMultipleBlocks(
         targets: targets,
-        keyHex: _defaultKey,
+        keyBytes: _defaultKey,
       );
       setState(() {
         _status = message;
@@ -221,7 +229,7 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
                 title: Text('Sektor ${item['sector']}, Blok ${item['block']}'),
                 subtitle: Text(
                   success
-                      ? 'Data: ${item['dataHex']}'
+                      ? 'Data: ${item['dataBytes']}'
                       : 'Error: ${item['error']}',
                   style: const TextStyle(fontFamily: 'monospace'),
                 ),

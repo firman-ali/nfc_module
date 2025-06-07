@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:nfc_module/nfc_module.dart';
@@ -20,7 +21,14 @@ class _NfcWriteMultipleDataScreenState
   String _status = 'Selamat datang!';
   String _result = '-';
   String _progressStatus = '';
-  final String _defaultKey = "FFFFFFFFFFFF";
+  final Uint8List _defaultKey = Uint8List.fromList([
+    0xFF,
+    0xFF,
+    0xFF,
+    0xFF,
+    0xFF,
+    0xFF,
+  ]);
   final TextEditingController _sectorController = TextEditingController(
     text: '1',
   );
@@ -74,22 +82,94 @@ class _NfcWriteMultipleDataScreenState
   }
 
   void _prepareMultiWrite() async {
-    // Daftar target tulis yang di-hardcode untuk demonstrasi
     final targets = [
-      const NfcWriteTarget(
+      NfcWriteTarget(
+        sectorIndex: 0,
+        blockIndex: 2,
+        dataBytes: Uint8List.fromList([
+          40,
+          240,
+          200,
+          15,
+          215,
+          12,
+          139,
+          26,
+          9,
+          248,
+          11,
+          238,
+          81,
+          94,
+          254,
+          90,
+        ]),
+      ),
+      NfcWriteTarget(
         sectorIndex: 1,
         blockIndex: 0,
-        dataString: "AABBCCDDEEFFAABB",
+        dataBytes: Uint8List.fromList([
+          18,
+          233,
+          146,
+          108,
+          157,
+          216,
+          100,
+          210,
+          244,
+          184,
+          47,
+          26,
+          57,
+          72,
+          147,
+          11,
+        ]),
       ),
-      const NfcWriteTarget(
+      NfcWriteTarget(
         sectorIndex: 1,
         blockIndex: 1,
-        dataString: "1122334455667788",
+        dataBytes: Uint8List.fromList([
+          77,
+          61,
+          29,
+          43,
+          218,
+          98,
+          181,
+          230,
+          134,
+          144,
+          202,
+          19,
+          92,
+          172,
+          168,
+          235,
+        ]),
       ),
-      const NfcWriteTarget(
+      NfcWriteTarget(
         sectorIndex: 1,
         blockIndex: 2,
-        dataString: "0000000000000000",
+        dataBytes: Uint8List.fromList([
+          135,
+          149,
+          108,
+          60,
+          144,
+          161,
+          141,
+          60,
+          28,
+          122,
+          88,
+          216,
+          219,
+          180,
+          10,
+          183,
+        ]),
       ),
     ];
 
@@ -117,7 +197,7 @@ class _NfcWriteMultipleDataScreenState
       try {
         final message = await _nfcModule.prepareWriteMultipleBlocks(
           targets: targets,
-          keyHex: _defaultKey,
+          keyBytes: _defaultKey,
         );
         setState(() {
           _status = message;
@@ -230,7 +310,7 @@ class _NfcWriteMultipleDataScreenState
           itemBuilder: (context, index) {
             final item = _multiOpResults[index];
             final bool success = item['success'];
-            final bool isRead = item.containsKey('dataHex');
+            final bool isRead = item.containsKey('dataBytes');
             return Card(
               color: success
                   ? Colors.green.withOpacity(0.1)
@@ -245,7 +325,7 @@ class _NfcWriteMultipleDataScreenState
                 subtitle: Text(
                   success
                       ? (isRead
-                            ? 'Baca: ${item['dataHex']}'
+                            ? 'Baca: ${item['dataBytes']}'
                             : 'Tulis: Berhasil')
                       : 'Error: ${item['error']}',
                   style: const TextStyle(fontFamily: 'monospace'),

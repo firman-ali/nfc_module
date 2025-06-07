@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:nfc_module/nfc_module.dart';
@@ -17,7 +18,14 @@ class _NfcResetScreenState extends State<NfcResetScreen> {
   String _status = 'Selamat datang!';
   String _result = '-';
   String _progressStatus = '';
-  final String _defaultKey = "FFFFFFFFFFFF";
+  final Uint8List _defaultKey = Uint8List.fromList([
+    0xFF,
+    0xFF,
+    0xFF,
+    0xFF,
+    0xFF,
+    0xFF,
+  ]);
 
   void _prepareReset() async {
     final confirmed = await showDialog<bool>(
@@ -43,7 +51,9 @@ class _NfcResetScreenState extends State<NfcResetScreen> {
 
     if (confirmed == true) {
       try {
-        final message = await _nfcModule.prepareResetCard(keyHex: _defaultKey);
+        final message = await _nfcModule.prepareResetCard(
+          keyBytes: _defaultKey,
+        );
         setState(() => _status = message);
       } catch (e) {
         setState(() => _status = 'Error: $e');
