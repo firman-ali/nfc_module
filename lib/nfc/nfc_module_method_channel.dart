@@ -49,6 +49,15 @@ class MethodChannelNfcModule extends NfcModulePlatform {
               .toList();
           _nfcStreamController?.add(NfcMultiBlockReadSuccess(results: results));
           break;
+        case 'onMultiWriteResult':
+          final rawResults = args['results'] as List<Object?>;
+          final results = rawResults
+              .map((item) => Map<String, dynamic>.from(item as Map))
+              .toList();
+          _nfcStreamController?.add(
+            NfcMultiBlockWriteSuccess(results: results),
+          );
+          break;
         case 'onError':
           _nfcStreamController?.add(
             NfcError(
@@ -142,5 +151,24 @@ class MethodChannelNfcModule extends NfcModulePlatform {
   void initializeNfc() {
     _nfcStreamController ??= StreamController<NfcEvent>.broadcast();
     methodChannel.setMethodCallHandler(_handleNfcMethodCall);
+  }
+
+  @override
+  Future<String> prepareWriteMultipleBlocks({
+    required List<NfcWriteTarget> targets,
+    required String keyHex,
+  }) async {
+    final targetMaps = targets.map((t) => t.toMap()).toList();
+    for (var target in targets) {
+      if (target.dataHex.length != 32) {
+        throw ArgumentError(
+          'Setiap data hex harus memiliki panjang 32 karakter (16 byte).',
+        );
+      }
+    }
+    return await methodChannel.invokeMethod('prepareWriteMultipleBlocks', {
+      'targets': targetMaps,
+      'keyHex': keyHex,
+    });
   }
 }

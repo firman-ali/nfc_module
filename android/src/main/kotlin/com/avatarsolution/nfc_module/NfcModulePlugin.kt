@@ -46,6 +46,7 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
     data class Write(val sectorIndex: Int, val blockIndex: Int, val data: ByteArray, val key: ByteArray) : PendingOperation()
     data class Reset(val key: ByteArray) : PendingOperation()
     data class ReadMultiple(val targets: List<Map<String, Int>>, val key: ByteArray) : PendingOperation()
+    data class WriteMultiple(val targets: List<Map<String, Any>>, val key: ByteArray) : PendingOperation()
   }
 
   companion object {
@@ -113,6 +114,16 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
           val keyHex = call.argument<String>("keyHex")!!
           pendingOperation = PendingOperation.ReadMultiple(targets, hexStringToByteArray(keyHex))
           result.success("Siap membaca ${targets.size} target. Tempelkan tag.")
+        } catch (e: Exception) {
+          result.error("ARGUMENT_ERROR", "Argumen tidak valid: ${e.message}", null)
+        }
+      }
+      "prepareWriteMultipleBlocks" -> {
+        try {
+          val targets = call.argument<List<Map<String, Any>>>("targets")!!
+          val keyHex = call.argument<String>("keyHex")!!
+          pendingOperation = PendingOperation.WriteMultiple(targets, hexStringToByteArray(keyHex))
+          result.success("Siap menulis ke ${targets.size} target. Tempelkan tag.")
         } catch (e: Exception) {
           result.error("ARGUMENT_ERROR", "Argumen tidak valid: ${e.message}", null)
         }
@@ -296,6 +307,58 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
             }
           }
           sendSuccessToFlutter("onMultiReadResult", mapOf("results" to results))
+        }
+        is PendingOperation.WriteMultiple -> {
+          val (targets, key) = operation
+          val results = mutableListOf<Map<String, Any>>()
+          val authenticatedSectors = mutableSetOf<Int>()
+
+          for (target in targets) {
+            val sectorIndex = target["sectorIndex"] as? Int ?: -1
+            val blockIndex = target["blockIndex"] as? Int ?: -1
+            val dataHex = target["dataHex"] as? String ?: ""
+
+            if (sectorIndex == -1 || blockIndex == -1 || dataHex.isEmpty()) continue
+
+            // Validasi keamanan di sisi native
+            val sectorTrailer = mifare.getBlockCountInSector(sectorIndex) - 1
+            if (blockIndex == sectorTrailer || (sectorIndex == 0 && blockIndex == 0)) {
+              results.add(mapOf(
+                "sector" to sectorIndex, "block" to blockIndex,
+                "error" to "Penulisan ke blok sistem dilarang", "success" to false
+              ))
+              continue
+            }
+
+            var authSuccess = authenticatedSectors.contains(sectorIndex)
+            if (!authSuccess) {
+              if (mifare.authenticateSectorWithKeyA(sectorIndex, key)) {
+                authenticatedSectors.add(sectorIndex)
+                authSuccess = true
+              }
+            }
+
+            if (authSuccess) {
+              try {
+                val absoluteBlockIndex = mifare.sectorToBlock(sectorIndex) + blockIndex
+                mifare.writeBlock(absoluteBlockIndex, hexStringToByteArray(dataHex))
+                results.add(mapOf(
+                  "sector" to sectorIndex, "block" to blockIndex, "success" to true
+                ))
+              } catch (e: IOException) {
+                results.add(mapOf(
+                  "sector" to sectorIndex, "block" to blockIndex,
+                  "error" to "Gagal tulis blok: ${e.message}", "success" to false
+                ))
+              }
+            } else {
+              results.add(mapOf(
+                "sector" to sectorIndex, "block" to blockIndex,
+                "error" to "Gagal autentikasi sektor", "success" to false
+              ))
+            }
+          }
+          sendSuccessToFlutter("onMultiWriteResult", mapOf("results" to results))
         }
         is PendingOperation.None -> { /* Do nothing */ }
       }

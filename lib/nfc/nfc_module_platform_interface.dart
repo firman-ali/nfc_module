@@ -14,6 +14,23 @@ class NfcReadTarget {
   };
 }
 
+class NfcWriteTarget {
+  const NfcWriteTarget({
+    required this.sectorIndex,
+    required this.blockIndex,
+    required this.dataHex,
+  });
+  final int sectorIndex;
+  final int blockIndex;
+  final String dataHex;
+
+  Map<String, dynamic> toMap() => {
+    'sectorIndex': sectorIndex,
+    'blockIndex': blockIndex,
+    'dataHex': dataHex,
+  };
+}
+
 abstract class NfcModulePlatform extends PlatformInterface {
   /// Constructs a NfcModulePlatform.
   NfcModulePlatform() : super(token: _token);
@@ -82,6 +99,15 @@ abstract class NfcModulePlatform extends PlatformInterface {
   }) {
     throw UnimplementedError(
       'prepareReadMultipleBlocks() has not been implemented.',
+    );
+  }
+
+  Future<String> prepareWriteMultipleBlocks({
+    required List<NfcWriteTarget> targets,
+    required String keyHex,
+  }) {
+    throw UnimplementedError(
+      'prepareWriteMultipleBlocks() has not been implemented.',
     );
   }
 }
