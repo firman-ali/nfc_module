@@ -41,6 +41,24 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
   private var sessionTagId: ByteArray? = null
   private var pendingOperation: PendingOperation = PendingOperation.None
 
+  private val nfcStateReceiver = object : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+      if (intent.action == NfcAdapter.ACTION_ADAPTER_STATE_CHANGED) {
+        val state = intent.getIntExtra(NfcAdapter.EXTRA_ADAPTER_STATE, NfcAdapter.STATE_OFF)
+        when (state) {
+          NfcAdapter.STATE_ON -> {
+            Log.d(TAG, "NFC diaktifkan oleh pengguna. Mencoba setup ulang.")
+            setupNfc()
+          }
+          NfcAdapter.STATE_OFF -> {
+            Log.d(TAG, "NFC dinonaktifkan oleh pengguna. Membersihkan resource.")
+            tearDownNfc()
+          }
+        }
+      }
+    }
+  }
+
   sealed class PendingOperation {
     object None : PendingOperation()
     data class ReadMultiple(
@@ -125,10 +143,17 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
 
   override fun onAttachedToActivity(binding: ActivityPluginBinding) {
     currentActivity = binding.activity
+    val filter = IntentFilter(NfcAdapter.ACTION_ADAPTER_STATE_CHANGED)
+    currentActivity?.registerReceiver(nfcStateReceiver, filter)
     setupNfc()
   }
 
   override fun onDetachedFromActivity() {
+    try {
+      currentActivity?.unregisterReceiver(nfcStateReceiver)
+    } catch (e: IllegalArgumentException) {
+      Log.w(TAG, "NFC state receiver tidak terdaftar atau sudah dilepas.")
+    }
     tearDownNfc()
     currentActivity = null
   }
@@ -143,32 +168,32 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
 
   private fun setupNfc() {
     val activity = currentActivity ?: return
-    nfcAdapter = NfcAdapter.getDefaultAdapter(activity)
+    if (nfcAdapter == null) nfcAdapter = NfcAdapter.getDefaultAdapter(activity)
 
     if (nfcAdapter == null) {
-      Toast.makeText(activity, "Perangkat ini tidak mendukung NFC", Toast.LENGTH_LONG).show()
+      sendErrorToFlutter("NO_NFC_SUPPORT", "Perangkat tidak memiliki hardware NFC.")
       return
     }
 
-    nfcAdapter?.enableReaderMode(
-      activity,
-      this,
-      NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK,
-      null
-    )
+    if (nfcAdapter?.isEnabled == false) {
+      sendErrorToFlutter("NFC_DISABLED", "NFC tidak aktif. Mohon aktifkan di pengaturan.")
+      return
+    }
+
+    nfcAdapter?.enableReaderMode(activity, this, NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK, null)
+    Log.d(TAG, "NFC Reader Mode diaktifkan.")
   }
 
   private fun tearDownNfc() {
-    if (currentActivity == null) {
-      return
-    }
-
-    try {
-      nfcAdapter?.disableReaderMode(currentActivity!!)
-    } catch (e: IllegalArgumentException) {
-      Log.i(TAG, "Receiver tidak terdaftar atau sudah dilepas: ${e.message}")
-    } catch (e: Exception) {
-      Log.e(TAG, "Error saat teardown NFC: ${e.message}")
+    currentActivity?.let {
+      try {
+        nfcAdapter?.disableReaderMode(currentActivity!!)
+        Log.d(TAG, "NFC Reader Mode dinonaktifkan.")
+      } catch (e: IllegalArgumentException) {
+        Log.i(TAG, "Receiver tidak terdaftar atau sudah dilepas: ${e.message}")
+      } catch (e: Exception) {
+        Log.e(TAG, "Error saat teardown NFC: ${e.message}")
+      }
     }
   }
 
