@@ -20,23 +20,6 @@ class MethodChannelNfcModule extends NfcModulePlatform {
       final Map<Object?, Object?> args =
           call.arguments as Map<Object?, Object?>;
       switch (call.method) {
-        case 'onReadResult':
-          _nfcStreamController?.add(
-            NfcReadSuccess(
-              sector: args['sector'] as int,
-              block: args['block'] as int,
-              dataHex: args['dataHex'] as String,
-            ),
-          );
-          break;
-        case 'onWriteResult':
-          _nfcStreamController?.add(
-            NfcWriteSuccess(
-              sector: args['sector'] as int,
-              block: args['block'] as int,
-            ),
-          );
-          break;
         case 'onResetResult':
           _nfcStreamController?.add(
             NfcResetSuccess(sectorsReset: args['sectorsReset'] as int),
@@ -66,6 +49,33 @@ class MethodChannelNfcModule extends NfcModulePlatform {
             ),
           );
           break;
+        case 'onReadProgressUpdate':
+          _nfcStreamController?.add(
+            NfcProgressUpdate(
+              completed: args['completed'] as int,
+              total: args['total'] as int,
+              operation: 'Membaca',
+            ),
+          );
+          break;
+        case 'onWriteProgressUpdate':
+          _nfcStreamController?.add(
+            NfcProgressUpdate(
+              completed: args['completed'] as int,
+              total: args['total'] as int,
+              operation: 'Menulis',
+            ),
+          );
+          break;
+        case 'onResetProgressUpdate':
+          _nfcStreamController?.add(
+            NfcProgressUpdate(
+              completed: args['completed'] as int,
+              total: args['total'] as int,
+              operation: 'Mereset',
+            ),
+          );
+          break;
       }
     } catch (e) {
       _nfcStreamController?.addError(e);
@@ -74,39 +84,6 @@ class MethodChannelNfcModule extends NfcModulePlatform {
 
   @override
   Stream<NfcEvent>? onNfcEvent() => _nfcStreamController?.stream;
-
-  @override
-  Future<String> prepareReadBlock({
-    required int sectorIndex,
-    required int blockIndex,
-    required String keyHex,
-  }) async {
-    return await methodChannel.invokeMethod('prepareReadBlock', {
-      'sectorIndex': sectorIndex,
-      'blockIndex': blockIndex,
-      'keyHex': keyHex,
-    });
-  }
-
-  @override
-  Future<String> prepareWriteBlock({
-    required int sectorIndex,
-    required int blockIndex,
-    required String keyHex,
-    required String dataHex,
-  }) async {
-    if (dataHex.length != 32) {
-      throw ArgumentError(
-        'Data hex harus memiliki panjang 32 karakter (16 byte).',
-      );
-    }
-    return await methodChannel.invokeMethod('prepareWriteBlock', {
-      'sectorIndex': sectorIndex,
-      'blockIndex': blockIndex,
-      'keyHex': keyHex,
-      'dataHex': dataHex,
-    });
-  }
 
   @override
   Future<String> prepareResetCard({required String keyHex}) async {

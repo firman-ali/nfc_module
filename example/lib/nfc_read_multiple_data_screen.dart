@@ -14,10 +14,11 @@ class NfcReadMultipleDataScreen extends StatefulWidget {
 class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
   final NfcModule _nfcModule = NfcModule();
   StreamSubscription<NfcEvent>? _nfcSubscription;
-  List<Map<String, dynamic>> _multiReadResults = [];
+  List<Map<String, dynamic>> _multiOpResults = [];
 
   String _status = 'Selamat datang!';
   String _result = '-';
+  String _progressStatus = '';
   final String _defaultKey = "FFFFFFFFFFFF";
   final TextEditingController _sectorController = TextEditingController(
     text: '1',
@@ -35,22 +36,25 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
       if (!mounted) return;
       setState(() {
         switch (event) {
-          case NfcReadSuccess():
-            throw UnimplementedError();
-          case NfcWriteSuccess():
-            throw UnimplementedError();
           case NfcResetSuccess():
             throw UnimplementedError();
           case NfcMultiBlockReadSuccess():
             _status = 'Sukses Membaca Banyak Blok';
             _result = 'Lihat detail hasil di bawah.';
-            _multiReadResults = event.results;
+            _multiOpResults = event.results;
+            _progressStatus = "";
             break;
           case NfcMultiBlockWriteSuccess():
             throw UnimplementedError();
           case NfcError():
             _status = 'Error: ${event.errorCode}';
             _result = event.errorMessage;
+            _progressStatus = "";
+            break;
+          case NfcProgressUpdate():
+            _status = 'Sesi sedang berlangsung...';
+            _progressStatus =
+                '${event.operation} ${event.completed} dari ${event.total}. Tempelkan lagi untuk melanjutkan.';
             break;
         }
       });
@@ -69,13 +73,12 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
 
   void _prepareMultiRead() async {
     final targets = [
+      const NfcReadTarget(sectorIndex: 0, blockIndex: 0),
+      const NfcReadTarget(sectorIndex: 0, blockIndex: 1),
+      const NfcReadTarget(sectorIndex: 0, blockIndex: 2),
       const NfcReadTarget(sectorIndex: 1, blockIndex: 0),
       const NfcReadTarget(sectorIndex: 1, blockIndex: 1),
-      const NfcReadTarget(sectorIndex: 2, blockIndex: 0),
-      const NfcReadTarget(
-        sectorIndex: 5,
-        blockIndex: 0,
-      ), // Contoh sektor yang mungkin gagal
+      const NfcReadTarget(sectorIndex: 1, blockIndex: 2),
     ];
 
     try {
@@ -86,7 +89,8 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
       setState(() {
         _status = message;
         _result = 'Menunggu tag...';
-        _multiReadResults = [];
+        _multiOpResults = [];
+        _progressStatus = '';
       });
     } catch (e) {
       setState(() => _status = 'Error: $e');
@@ -98,11 +102,14 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
     setState(() {
       _status = 'Operasi dibatalkan. Siap untuk perintah baru.';
       _result = '-';
+      _progressStatus = '';
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final bool isSessionActive = _progressStatus.isNotEmpty;
+
     return Scaffold(
       appBar: AppBar(title: const Text('NFC Read/Write Block')),
       body: GestureDetector(
@@ -116,16 +123,18 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.deepPurple.withValues(alpha: 0.1),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
                   children: [
-                    const Text(
+                    Text(
                       'STATUS',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.deepPurple,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -134,12 +143,34 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 16),
                     ),
+                    if (isSessionActive) ...[
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(),
+                      const SizedBox(height: 8),
+                      Text(
+                        _progressStatus,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.secondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
               const SizedBox(height: 16),
               // Result Panel
-              if (_multiReadResults.isNotEmpty) _buildMultiReadResultView(),
+              if (!isSessionActive && _result != '-')
+                Card(
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(_result),
+                  ),
+                ),
+              const SizedBox(height: 24),
+              if (_multiOpResults.isNotEmpty) _buildMultiReadResultView(),
               const SizedBox(height: 24),
               // Action Buttons
               ElevatedButton.icon(
@@ -173,9 +204,9 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: _multiReadResults.length,
+          itemCount: _multiOpResults.length,
           itemBuilder: (context, index) {
-            final item = _multiReadResults[index];
+            final item = _multiOpResults[index];
             final bool success = item['success'];
             return Card(
               color: success

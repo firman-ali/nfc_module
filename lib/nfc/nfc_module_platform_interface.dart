@@ -64,23 +64,6 @@ abstract class NfcModulePlatform extends PlatformInterface {
     throw UnimplementedError('onNfcEvent() has not been implemented.');
   }
 
-  Future<String> prepareReadBlock({
-    required int sectorIndex,
-    required int blockIndex,
-    required String keyHex,
-  }) {
-    throw UnimplementedError('prepareReadSector() has not been implemented.');
-  }
-
-  Future<String> prepareWriteBlock({
-    required int sectorIndex,
-    required int blockIndex,
-    required String keyHex,
-    required String dataHex,
-  }) {
-    throw UnimplementedError('prepareWriteSector() has not been implemented.');
-  }
-
   Future<String> prepareResetCard({required String keyHex}) {
     throw UnimplementedError('prepareResetSector() has not been implemented.');
   }

@@ -19,6 +19,7 @@ class _NfcWriteMultipleDataScreenState
 
   String _status = 'Selamat datang!';
   String _result = '-';
+  String _progressStatus = '';
   final String _defaultKey = "FFFFFFFFFFFF";
   final TextEditingController _sectorController = TextEditingController(
     text: '1',
@@ -37,23 +38,25 @@ class _NfcWriteMultipleDataScreenState
       _multiOpResults = [];
       setState(() {
         switch (event) {
-          case NfcReadSuccess():
-            throw UnimplementedError();
-          case NfcWriteSuccess():
-            throw UnimplementedError();
           case NfcResetSuccess():
             throw UnimplementedError();
           case NfcMultiBlockReadSuccess():
             throw UnimplementedError();
           case NfcMultiBlockWriteSuccess():
-          case NfcMultiBlockWriteSuccess():
             _status = 'Selesai Menulis ke Banyak Blok';
             _result = 'Lihat detail hasil di bawah.';
             _multiOpResults = event.results;
+            _progressStatus = '';
             break;
           case NfcError():
             _status = 'Error: ${event.errorCode}';
             _result = event.errorMessage;
+            _progressStatus = '';
+            break;
+          case NfcProgressUpdate():
+            _status = 'Sesi sedang berlangsung...';
+            _progressStatus =
+                '${event.operation} ${event.completed} dari ${event.total}. Tempelkan lagi untuk melanjutkan.';
             break;
         }
       });
@@ -87,12 +90,6 @@ class _NfcWriteMultipleDataScreenState
         sectorIndex: 1,
         blockIndex: 2,
         dataHex: "00000000000000000000000000000000",
-      ),
-      // Contoh target yang akan gagal karena melanggar aturan keamanan
-      const NfcWriteTarget(
-        sectorIndex: 1,
-        blockIndex: 3,
-        dataHex: "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
       ),
     ];
 
@@ -138,6 +135,7 @@ class _NfcWriteMultipleDataScreenState
     setState(() {
       _status = 'Operasi dibatalkan. Siap untuk perintah baru.';
       _result = '-';
+      _progressStatus = '';
     });
   }
 
@@ -156,16 +154,18 @@ class _NfcWriteMultipleDataScreenState
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.deepPurple.withValues(alpha: 0.1),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
                   children: [
-                    const Text(
+                    Text(
                       'STATUS',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.deepPurple,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -174,6 +174,19 @@ class _NfcWriteMultipleDataScreenState
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 16),
                     ),
+                    if (_progressStatus.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(),
+                      const SizedBox(height: 8),
+                      Text(
+                        _progressStatus,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.secondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

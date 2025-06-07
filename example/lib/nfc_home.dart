@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:nfc_module/nfc_module.dart';
 
 import 'nfc_read_multiple_data_screen.dart';
-import 'nfc_read_write_screen.dart';
 import 'nfc_reset_screen.dart';
 import 'nfc_write_multiple_data_screen.dart';
 
@@ -54,18 +53,6 @@ class _NfcHomeState extends State<NfcHome> {
       body: Column(
         children: [
           Center(child: Text('Running on: $_platformVersion\n')),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NfcReadWriteScreen(),
-                ),
-              );
-            },
-            child: Text("NFC Read Write Page"),
-          ),
-          SizedBox(height: 16.0),
 
           ElevatedButton(
             onPressed: () {

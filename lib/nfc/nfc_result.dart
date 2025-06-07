@@ -5,21 +5,14 @@ sealed class NfcEvent {
   const NfcEvent();
 }
 
-class NfcReadSuccess extends NfcEvent {
-  const NfcReadSuccess({
-    required this.sector,
-    required this.block,
-    required this.dataHex,
-  });
-  final int sector;
-  final int block;
-  final String dataHex;
+class NfcMultiBlockReadSuccess extends NfcEvent {
+  const NfcMultiBlockReadSuccess({required this.results});
+  final List<Map<String, dynamic>> results;
 }
 
-class NfcWriteSuccess extends NfcEvent {
-  const NfcWriteSuccess({required this.sector, required this.block});
-  final int sector;
-  final int block;
+class NfcMultiBlockWriteSuccess extends NfcEvent {
+  const NfcMultiBlockWriteSuccess({required this.results});
+  final List<Map<String, dynamic>> results;
 }
 
 class NfcResetSuccess extends NfcEvent {
@@ -33,12 +26,13 @@ class NfcError extends NfcEvent {
   final String errorMessage;
 }
 
-class NfcMultiBlockReadSuccess extends NfcEvent {
-  const NfcMultiBlockReadSuccess({required this.results});
-  final List<Map<String, dynamic>> results;
-}
-
-class NfcMultiBlockWriteSuccess extends NfcEvent {
-  const NfcMultiBlockWriteSuccess({required this.results});
-  final List<Map<String, dynamic>> results;
+class NfcProgressUpdate extends NfcEvent {
+  const NfcProgressUpdate({
+    required this.completed,
+    required this.total,
+    required this.operation,
+  });
+  final int completed;
+  final int total;
+  final String operation;
 }
