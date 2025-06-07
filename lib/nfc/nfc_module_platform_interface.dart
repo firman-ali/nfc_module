@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'nfc_module_method_channel.dart';
@@ -18,16 +20,16 @@ class NfcWriteTarget {
   const NfcWriteTarget({
     required this.sectorIndex,
     required this.blockIndex,
-    required this.dataString,
+    required this.dataBytes,
   });
   final int sectorIndex;
   final int blockIndex;
-  final String dataString;
+  final Uint8List dataBytes;
 
   Map<String, dynamic> toMap() => {
     'sectorIndex': sectorIndex,
     'blockIndex': blockIndex,
-    'dataString': dataString,
+    'dataBytes': dataBytes,
   };
 }
 
@@ -64,7 +66,7 @@ abstract class NfcModulePlatform extends PlatformInterface {
     throw UnimplementedError('onNfcEvent() has not been implemented.');
   }
 
-  Future<String> prepareResetCard({required String keyHex}) {
+  Future<String> prepareResetCard({required Uint8List keyBytes}) {
     throw UnimplementedError('prepareResetSector() has not been implemented.');
   }
 
@@ -78,7 +80,7 @@ abstract class NfcModulePlatform extends PlatformInterface {
 
   Future<String> prepareReadMultipleBlocks({
     required List<NfcReadTarget> targets,
-    required String keyHex,
+    required Uint8List keyBytes,
   }) {
     throw UnimplementedError(
       'prepareReadMultipleBlocks() has not been implemented.',
@@ -87,7 +89,7 @@ abstract class NfcModulePlatform extends PlatformInterface {
 
   Future<String> prepareWriteMultipleBlocks({
     required List<NfcWriteTarget> targets,
-    required String keyHex,
+    required Uint8List keyBytes,
   }) {
     throw UnimplementedError(
       'prepareWriteMultipleBlocks() has not been implemented.',

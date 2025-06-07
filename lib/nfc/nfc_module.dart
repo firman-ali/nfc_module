@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'nfc_module_platform_interface.dart';
 import 'nfc_result.dart';
 
@@ -12,27 +14,27 @@ class NfcModule {
 
   Stream<NfcEvent>? get onNfcEvent => NfcModulePlatform.instance.onNfcEvent();
 
-  Future<String> prepareResetCard({required String keyHex}) {
-    return NfcModulePlatform.instance.prepareResetCard(keyHex: keyHex);
+  Future<String> prepareResetCard({required Uint8List keyBytes}) {
+    return NfcModulePlatform.instance.prepareResetCard(keyBytes: keyBytes);
   }
 
   Future<String> prepareReadMultipleBlocks({
     required List<NfcReadTarget> targets,
-    required String keyHex,
+    required Uint8List keyBytes,
   }) {
     return NfcModulePlatform.instance.prepareReadMultipleBlocks(
       targets: targets,
-      keyHex: keyHex,
+      keyBytes: keyBytes,
     );
   }
 
   Future<String> prepareWriteMultipleBlocks({
     required List<NfcWriteTarget> targets,
-    required String keyHex,
+    required Uint8List keyBytes,
   }) {
     return NfcModulePlatform.instance.prepareWriteMultipleBlocks(
       targets: targets,
-      keyHex: keyHex,
+      keyBytes: keyBytes,
     );
   }
 

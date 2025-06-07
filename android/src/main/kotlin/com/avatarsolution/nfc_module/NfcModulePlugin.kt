@@ -107,28 +107,32 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
         }
         "prepareReadMultipleBlocks" -> {
           val targets = call.argument<List<Map<String, Int>>>("targets")!!
-          val keyHex = call.argument<String>("keyHex")!!
+          val keyBytes = call.argument<ByteArray>("keyBytes")!!
           pendingOperation = PendingOperation.ReadMultiple(
-            originalTargets = targets, pendingTargets = targets.toMutableList(),
-            accumulatedResults = mutableListOf(), key = hexStringToByteArray(keyHex)
+            originalTargets = targets,
+            pendingTargets = targets.toMutableList(),
+            accumulatedResults = mutableListOf(),
+            key = keyBytes
           )
           result.success("Sesi baca ganda dimulai. Tempelkan tag.")
         }
         "prepareWriteMultipleBlocks" -> {
           val targets = call.argument<List<Map<String, Any>>>("targets")!!
-          val keyHex = call.argument<String>("keyHex")!!
+          val keyBytes = call.argument<ByteArray>("keyBytes")!!
           pendingOperation = PendingOperation.WriteMultiple(
-            originalTargets = targets, pendingTargets = targets.toMutableList(),
-            accumulatedResults = mutableListOf(), key = hexStringToByteArray(keyHex)
+            originalTargets = targets,
+            pendingTargets = targets.toMutableList(),
+            accumulatedResults = mutableListOf(),
+            key = keyBytes
           )
           result.success("Sesi tulis ganda dimulai. Tempelkan tag.")
         }
         "prepareResetCard" -> {
-          val keyHex = call.argument<String>("keyHex")!!
+          val keyBytes = call.argument<ByteArray>("keyBytes")!!
           pendingOperation = PendingOperation.Reset(
-            totalSectors = null, // Akan diisi saat tag pertama kali terdeteksi
+            totalSectors = null,
             pendingSectors = mutableListOf(), completedSectors = mutableListOf(),
-            key = hexStringToByteArray(keyHex)
+            key = keyBytes
           )
           result.success("Sesi reset dimulai. Tempelkan tag.")
         }
@@ -256,7 +260,7 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
         try {
           val absoluteBlockIndex = mifare.sectorToBlock(sectorIndex) + blockIndex
           val blockData = mifare.readBlock(absoluteBlockIndex)
-          session.accumulatedResults.add(mapOf("sector" to sectorIndex, "block" to blockIndex, "dataHex" to byteArrayToString(blockData), "success" to true))
+          session.accumulatedResults.add(mapOf("sector" to sectorIndex, "block" to blockIndex, "dataBytes" to blockData, "success" to true))
           session.pendingTargets.remove(target)
         } catch (e: IOException) { /* Gagal baca, jangan hapus. Coba lagi nanti. */ }
       }
@@ -277,7 +281,7 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
     for (target in targetsToProcess) {
       val sector = target["sectorIndex"] as Int
       val block = target["blockIndex"] as Int
-      val dataString = target["dataString"] as String
+      val dataBytes = target["dataBytes"] as ByteArray
 
       val sectorTrailer = mifare.getBlockCountInSector(sector) - 1
       if (block == sectorTrailer || (sector == 0 && block == 0)) {
@@ -297,7 +301,7 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
       if (authSuccess) {
         try {
           val absoluteBlockIndex = mifare.sectorToBlock(sector) + block
-          mifare.writeBlock(absoluteBlockIndex, plainStringToPaddedByteArray(dataString))
+          mifare.writeBlock(absoluteBlockIndex, dataBytes)
           session.accumulatedResults.add(mapOf("sector" to sector, "block" to block, "success" to true))
           session.pendingTargets.remove(target)
         } catch (e: IOException) { /* Gagal tulis, jangan hapus. Coba lagi nanti. */ }
@@ -361,28 +365,5 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
   }
   private fun sendErrorToFlutter(errorCode: String, errorMessage: String) {
     uiThreadHandler.post { channel?.invokeMethod("onError", mapOf("errorCode" to errorCode, "errorMessage" to errorMessage)) }
-  }
-  private fun plainStringToPaddedByteArray(s: String): ByteArray {
-    val sourceBytes = s.toByteArray(Charset.forName("UTF-8"))
-    val resultBytes = ByteArray(16)
-    Arrays.fill(resultBytes, 0x20.toByte())
-    System.arraycopy(sourceBytes, 0, resultBytes, 0, minOf(sourceBytes.size, resultBytes.size))
-    return resultBytes
-  }
-  private fun byteArrayToString(a: ByteArray): String {
-    val sb = StringBuilder(a.size * 2)
-    for (b in a) {
-      sb.append(String.format("%02X", b))
-    }
-    return sb.toString()
-  }
-  private fun hexStringToByteArray(s: String): ByteArray {
-    val len = s.length; val data = ByteArray(len / 2)
-    var i = 0
-    while (i < len) {
-      data[i / 2] = ((Character.digit(s[i], 16) shl 4) + Character.digit(s[i + 1], 16)).toByte()
-      i += 2
-    }
-    return data
   }
 }

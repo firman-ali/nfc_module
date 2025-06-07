@@ -86,21 +86,21 @@ class MethodChannelNfcModule extends NfcModulePlatform {
   Stream<NfcEvent>? onNfcEvent() => _nfcStreamController?.stream;
 
   @override
-  Future<String> prepareResetCard({required String keyHex}) async {
+  Future<String> prepareResetCard({required Uint8List keyBytes}) async {
     return await methodChannel.invokeMethod('prepareResetCard', {
-      'keyHex': keyHex,
+      'keyBytes': keyBytes,
     });
   }
 
   @override
   Future<String> prepareReadMultipleBlocks({
     required List<NfcReadTarget> targets,
-    required String keyHex,
+    required Uint8List keyBytes,
   }) async {
     final targetMaps = targets.map((t) => t.toMap()).toList();
     return await methodChannel.invokeMethod('prepareReadMultipleBlocks', {
       'targets': targetMaps,
-      'keyHex': keyHex,
+      'keyBytes': keyBytes,
     });
   }
 
@@ -133,17 +133,17 @@ class MethodChannelNfcModule extends NfcModulePlatform {
   @override
   Future<String> prepareWriteMultipleBlocks({
     required List<NfcWriteTarget> targets,
-    required String keyHex,
+    required Uint8List keyBytes,
   }) async {
     final targetMaps = targets.map((t) => t.toMap()).toList();
     for (var target in targets) {
-      if (target.dataString.length > 16) {
-        throw ArgumentError('Setiap data tidak boleh lebih dari 16 karakter.');
+      if (target.dataBytes.length != 16) {
+        throw ArgumentError('Data harus 16 byte.');
       }
     }
     return await methodChannel.invokeMethod('prepareWriteMultipleBlocks', {
       'targets': targetMaps,
-      'keyHex': keyHex,
+      'keyBytes': keyBytes,
     });
   }
 }

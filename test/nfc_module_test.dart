@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nfc_module/nfc_module.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
@@ -11,15 +13,6 @@ class MockNfcModulePlatform
   @override
   void initializeNfc() {
     return;
-  }
-
-  @override
-  Future<String> prepareReadBlock({
-    required int sectorIndex,
-    required int blockIndex,
-    required String keyHex,
-  }) {
-    throw UnimplementedError();
   }
 
   @override
@@ -38,24 +31,14 @@ class MockNfcModulePlatform
   }
 
   @override
-  Future<String> prepareWriteBlock({
-    required int sectorIndex,
-    required int blockIndex,
-    required String keyHex,
-    required String dataHex,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<String> prepareResetCard({required String keyHex}) {
+  Future<String> prepareResetCard({required Uint8List keyBytes}) {
     throw UnimplementedError();
   }
 
   @override
   Future<String> prepareReadMultipleBlocks({
     required List<NfcReadTarget> targets,
-    required String keyHex,
+    required Uint8List keyBytes,
   }) {
     throw UnimplementedError();
   }
@@ -63,7 +46,7 @@ class MockNfcModulePlatform
   @override
   Future<String> prepareWriteMultipleBlocks({
     required List<NfcWriteTarget> targets,
-    required String keyHex,
+    required Uint8List keyBytes,
   }) {
     throw UnimplementedError();
   }
