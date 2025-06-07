@@ -18,16 +18,16 @@ class NfcWriteTarget {
   const NfcWriteTarget({
     required this.sectorIndex,
     required this.blockIndex,
-    required this.dataHex,
+    required this.dataString,
   });
   final int sectorIndex;
   final int blockIndex;
-  final String dataHex;
+  final String dataString;
 
   Map<String, dynamic> toMap() => {
     'sectorIndex': sectorIndex,
     'blockIndex': blockIndex,
-    'dataHex': dataHex,
+    'dataString': dataString,
   };
 }
 

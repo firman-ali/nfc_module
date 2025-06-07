@@ -79,17 +79,17 @@ class _NfcWriteMultipleDataScreenState
       const NfcWriteTarget(
         sectorIndex: 1,
         blockIndex: 0,
-        dataHex: "AABBCCDDEEFFAABBCCDDEEFFAABBCCDD",
+        dataString: "AABBCCDDEEFFAABB",
       ),
       const NfcWriteTarget(
         sectorIndex: 1,
         blockIndex: 1,
-        dataHex: "11223344556677889900112233445566",
+        dataString: "1122334455667788",
       ),
       const NfcWriteTarget(
         sectorIndex: 1,
         blockIndex: 2,
-        dataHex: "00000000000000000000000000000000",
+        dataString: "0000000000000000",
       ),
     ];
 

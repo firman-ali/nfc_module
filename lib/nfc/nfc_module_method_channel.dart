@@ -137,10 +137,8 @@ class MethodChannelNfcModule extends NfcModulePlatform {
   }) async {
     final targetMaps = targets.map((t) => t.toMap()).toList();
     for (var target in targets) {
-      if (target.dataHex.length != 32) {
-        throw ArgumentError(
-          'Setiap data hex harus memiliki panjang 32 karakter (16 byte).',
-        );
+      if (target.dataString.length > 16) {
+        throw ArgumentError('Setiap data tidak boleh lebih dari 16 karakter.');
       }
     }
     return await methodChannel.invokeMethod('prepareWriteMultipleBlocks', {

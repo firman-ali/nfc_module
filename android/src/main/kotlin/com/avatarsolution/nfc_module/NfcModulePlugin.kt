@@ -21,6 +21,7 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import java.io.IOException
+import java.nio.charset.Charset
 import java.util.Arrays
 import kotlin.concurrent.thread
 
@@ -255,7 +256,7 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
         try {
           val absoluteBlockIndex = mifare.sectorToBlock(sectorIndex) + blockIndex
           val blockData = mifare.readBlock(absoluteBlockIndex)
-          session.accumulatedResults.add(mapOf("sector" to sectorIndex, "block" to blockIndex, "dataHex" to byteArrayToHexString(blockData), "success" to true))
+          session.accumulatedResults.add(mapOf("sector" to sectorIndex, "block" to blockIndex, "dataHex" to byteArrayToString(blockData), "success" to true))
           session.pendingTargets.remove(target)
         } catch (e: IOException) { /* Gagal baca, jangan hapus. Coba lagi nanti. */ }
       }
@@ -276,7 +277,7 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
     for (target in targetsToProcess) {
       val sector = target["sectorIndex"] as Int
       val block = target["blockIndex"] as Int
-      val dataHex = target["dataHex"] as String
+      val dataString = target["dataString"] as String
 
       val sectorTrailer = mifare.getBlockCountInSector(sector) - 1
       if (block == sectorTrailer || (sector == 0 && block == 0)) {
@@ -296,7 +297,7 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
       if (authSuccess) {
         try {
           val absoluteBlockIndex = mifare.sectorToBlock(sector) + block
-          mifare.writeBlock(absoluteBlockIndex, hexStringToByteArray(dataHex))
+          mifare.writeBlock(absoluteBlockIndex, plainStringToPaddedByteArray(dataString))
           session.accumulatedResults.add(mapOf("sector" to sector, "block" to block, "success" to true))
           session.pendingTargets.remove(target)
         } catch (e: IOException) { /* Gagal tulis, jangan hapus. Coba lagi nanti. */ }
@@ -361,6 +362,20 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
   private fun sendErrorToFlutter(errorCode: String, errorMessage: String) {
     uiThreadHandler.post { channel?.invokeMethod("onError", mapOf("errorCode" to errorCode, "errorMessage" to errorMessage)) }
   }
+  private fun plainStringToPaddedByteArray(s: String): ByteArray {
+    val sourceBytes = s.toByteArray(Charset.forName("UTF-8"))
+    val resultBytes = ByteArray(16)
+    Arrays.fill(resultBytes, 0x20.toByte())
+    System.arraycopy(sourceBytes, 0, resultBytes, 0, minOf(sourceBytes.size, resultBytes.size))
+    return resultBytes
+  }
+  private fun byteArrayToString(a: ByteArray): String {
+    val sb = StringBuilder(a.size * 2)
+    for (b in a) {
+      sb.append(String.format("%02X", b))
+    }
+    return sb.toString()
+  }
   private fun hexStringToByteArray(s: String): ByteArray {
     val len = s.length; val data = ByteArray(len / 2)
     var i = 0
@@ -369,10 +384,5 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
       i += 2
     }
     return data
-  }
-  private fun byteArrayToHexString(a: ByteArray): String {
-    val sb = StringBuilder(a.size * 2)
-    for (b in a) { sb.append(String.format("%02X", b)) }
-    return sb.toString()
   }
 }
