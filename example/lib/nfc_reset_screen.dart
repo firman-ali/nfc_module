@@ -16,6 +16,7 @@ class _NfcResetScreenState extends State<NfcResetScreen> {
 
   String _status = 'Selamat datang!';
   String _result = '-';
+  String _progressStatus = '';
   final String _defaultKey = "FFFFFFFFFFFF";
 
   void _prepareReset() async {
@@ -58,22 +59,25 @@ class _NfcResetScreenState extends State<NfcResetScreen> {
       if (!mounted) return;
       setState(() {
         switch (event) {
-          case NfcReadSuccess():
-            throw UnimplementedError();
-          case NfcWriteSuccess():
-            throw UnimplementedError();
           case NfcResetSuccess():
             _status = 'Kartu Berhasil Direset!';
             _result = '${event.sectorsReset} sektor telah dikosongkan.';
+            _progressStatus = '';
             break;
           case NfcError():
             _status = 'Error: ${event.errorCode}';
             _result = event.errorMessage;
+            _progressStatus = '';
             break;
           case NfcMultiBlockReadSuccess():
             throw UnimplementedError();
           case NfcMultiBlockWriteSuccess():
             throw UnimplementedError();
+          case NfcProgressUpdate():
+            _status = 'Sesi sedang berlangsung...';
+            _progressStatus =
+                '${event.operation} ${event.completed} dari ${event.total}. Tempelkan lagi untuk melanjutkan.';
+            break;
         }
       });
     });
@@ -91,6 +95,7 @@ class _NfcResetScreenState extends State<NfcResetScreen> {
     setState(() {
       _status = 'Operasi dibatalkan. Siap untuk perintah baru.';
       _result = '-';
+      _progressStatus = '';
     });
   }
 
@@ -109,16 +114,18 @@ class _NfcResetScreenState extends State<NfcResetScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.deepPurple.withValues(alpha: 0.1),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
                   children: [
-                    const Text(
+                    Text(
                       'STATUS',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.deepPurple,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -127,6 +134,19 @@ class _NfcResetScreenState extends State<NfcResetScreen> {
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 16),
                     ),
+                    if (_progressStatus.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(),
+                      const SizedBox(height: 8),
+                      Text(
+                        _progressStatus,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.secondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
