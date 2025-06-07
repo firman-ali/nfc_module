@@ -21,6 +21,7 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import java.io.IOException
+import java.util.Arrays
 import kotlin.concurrent.thread
 
 /** NfcModulePlugin */
@@ -34,19 +35,32 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
   private var currentActivity: Activity? = null
 
   private var nfcAdapter: NfcAdapter? = null
-  private var successCount: Int = 0
 
   private val uiThreadHandler = Handler(Looper.getMainLooper())
 
+  private var sessionTagId: ByteArray? = null
   private var pendingOperation: PendingOperation = PendingOperation.None
 
   sealed class PendingOperation {
     object None : PendingOperation()
-    data class Read(val sectorIndex: Int, val blockIndex: Int, val key: ByteArray) : PendingOperation()
-    data class Write(val sectorIndex: Int, val blockIndex: Int, val data: ByteArray, val key: ByteArray) : PendingOperation()
-    data class Reset(val key: ByteArray) : PendingOperation()
-    data class ReadMultiple(val targets: List<Map<String, Int>>, val key: ByteArray) : PendingOperation()
-    data class WriteMultiple(val targets: List<Map<String, Any>>, val key: ByteArray) : PendingOperation()
+    data class ReadMultiple(
+      val originalTargets: List<Map<String, Int>>,
+      var pendingTargets: MutableList<Map<String, Int>>,
+      val accumulatedResults: MutableList<Map<String, Any>>,
+      val key: ByteArray
+    ) : PendingOperation()
+    data class WriteMultiple(
+      val originalTargets: List<Map<String, Any>>,
+      var pendingTargets: MutableList<Map<String, Any>>,
+      val accumulatedResults: MutableList<Map<String, Any>>,
+      val key: ByteArray
+    ) : PendingOperation()
+    data class Reset(
+      var totalSectors: Int?,
+      var pendingSectors: MutableList<Int>,
+      val completedSectors: MutableList<Int>,
+      val key: ByteArray
+    ) : PendingOperation()
   }
 
   companion object {
@@ -64,77 +78,48 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
   }
 
   override fun onMethodCall(call: MethodCall, result: Result) {
-    when (call.method) {
-      "getPlatformVersion" -> {
-        result.success("Android ${android.os.Build.VERSION.RELEASE}")
-      }
-      "prepareReadBlock" -> {
-        try {
-          val sector = call.argument<Int>("sectorIndex")!!
-          val block = call.argument<Int>("blockIndex")!!
-          val keyHex = call.argument<String>("keyHex")!!
-          pendingOperation = PendingOperation.Read(sector, block, hexStringToByteArray(keyHex))
-          result.success("Siap membaca blok $block di sektor $sector. Tempelkan tag.")
-        } catch (e: Exception) {
-          result.error("ARGUMENT_ERROR", "Argumen tidak valid: ${e.message}", null)
-        }
-      }
-      "prepareWriteBlock" -> {
-        try {
-          val sector = call.argument<Int>("sectorIndex")!!
-          val block = call.argument<Int>("blockIndex")!!
-          val keyHex = call.argument<String>("keyHex")!!
-          val dataHex = call.argument<String>("dataHex")!!
+    sessionTagId = null
+    pendingOperation = PendingOperation.None
 
-          val data = hexStringToByteArray(dataHex)
-          if (data.size != 16) {
-            result.error("DATA_LENGTH_ERROR", "Data harus tepat 16 byte.", null)
-            return
-          }
-
-          pendingOperation = PendingOperation.Write(sector, block, data, hexStringToByteArray(keyHex))
-          result.success("Siap menulis ke blok $block di sektor $sector. Tempelkan tag.")
-        } catch (e: Exception) {
-          result.error("ARGUMENT_ERROR", "Argumen tidak valid: ${e.message}", null)
+    try {
+      when (call.method) {
+        "getPlatformVersion" -> {
+          result.success("Android ${android.os.Build.VERSION.RELEASE}")
         }
-      }
-      "prepareResetCard" -> {
-        try {
-          val keyHex = call.argument<String>("keyHex")!!
-          pendingOperation = PendingOperation.Reset(hexStringToByteArray(keyHex))
-          result.success("Siap mereset kartu. Tempelkan tag.")
-        } catch (e: Exception) {
-          result.error("ARGUMENT_ERROR", "Argumen tidak valid: ${e.message}", null)
-        }
-      }
-      "prepareReadMultipleBlocks" -> {
-        try {
-          @Suppress("UNCHECKED_CAST")
+        "prepareReadMultipleBlocks" -> {
           val targets = call.argument<List<Map<String, Int>>>("targets")!!
           val keyHex = call.argument<String>("keyHex")!!
-          pendingOperation = PendingOperation.ReadMultiple(targets, hexStringToByteArray(keyHex))
-          result.success("Siap membaca ${targets.size} target. Tempelkan tag.")
-        } catch (e: Exception) {
-          result.error("ARGUMENT_ERROR", "Argumen tidak valid: ${e.message}", null)
+          pendingOperation = PendingOperation.ReadMultiple(
+            originalTargets = targets, pendingTargets = targets.toMutableList(),
+            accumulatedResults = mutableListOf(), key = hexStringToByteArray(keyHex)
+          )
+          result.success("Sesi baca ganda dimulai. Tempelkan tag.")
         }
-      }
-      "prepareWriteMultipleBlocks" -> {
-        try {
+        "prepareWriteMultipleBlocks" -> {
           val targets = call.argument<List<Map<String, Any>>>("targets")!!
           val keyHex = call.argument<String>("keyHex")!!
-          pendingOperation = PendingOperation.WriteMultiple(targets, hexStringToByteArray(keyHex))
-          result.success("Siap menulis ke ${targets.size} target. Tempelkan tag.")
-        } catch (e: Exception) {
-          result.error("ARGUMENT_ERROR", "Argumen tidak valid: ${e.message}", null)
+          pendingOperation = PendingOperation.WriteMultiple(
+            originalTargets = targets, pendingTargets = targets.toMutableList(),
+            accumulatedResults = mutableListOf(), key = hexStringToByteArray(keyHex)
+          )
+          result.success("Sesi tulis ganda dimulai. Tempelkan tag.")
         }
+        "prepareResetCard" -> {
+          val keyHex = call.argument<String>("keyHex")!!
+          pendingOperation = PendingOperation.Reset(
+            totalSectors = null, // Akan diisi saat tag pertama kali terdeteksi
+            pendingSectors = mutableListOf(), completedSectors = mutableListOf(),
+            key = hexStringToByteArray(keyHex)
+          )
+          result.success("Sesi reset dimulai. Tempelkan tag.")
+        }
+        "cancelOperation" -> {
+          result.success("Operasi dibatalkan.")
+        }
+        else -> result.notImplemented()
       }
-      "cancelOperation" -> {
-        pendingOperation = PendingOperation.None
-        result.success("Operasi dibatalkan.")
-      }
-      else -> {
-        result.notImplemented()
-      }
+    } catch (e: Exception) {
+      result.error("ARGUMENT_ERROR", "Argumen tidak valid: ${e.message}", null)
     }
   }
 
@@ -190,14 +175,21 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
   override fun onTagDiscovered(tag: Tag?) {
     Log.d(TAG, "NFC Tag Ditemukan!")
     tag ?: return
-
     val currentOperation = pendingOperation
     if (currentOperation is PendingOperation.None) return
-    thread { handleMifareClassic(tag, currentOperation) }
-    pendingOperation = PendingOperation.None
+    thread { handleMifareSession(tag, currentOperation) }
   }
 
-  private fun handleMifareClassic(tag: Tag, operation: PendingOperation) {
+
+  private fun handleMifareSession(tag: Tag, operation: PendingOperation) {
+    if (sessionTagId == null) {
+      sessionTagId = tag.id
+    } else if (!Arrays.equals(sessionTagId, tag.id)) {
+      sendErrorToFlutter("WRONG_TAG", "Tag yang berbeda terdeteksi. Sesi dibatalkan.")
+      pendingOperation = PendingOperation.None; sessionTagId = null
+      return
+    }
+
     val mifare = MifareClassic.get(tag)
     if (mifare == null) {
       sendErrorToFlutter("TAG_NOT_SUPPORTED", "Tag ini bukan MIFARE Classic.")
@@ -207,209 +199,155 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
     try {
       mifare.connect()
       when (operation) {
-        is PendingOperation.Read -> {
-          val (sectorIndex, relativeBlockIndex, key) = operation
-          if (mifare.authenticateSectorWithKeyA(sectorIndex, key)) {
-            val absoluteBlockIndex = mifare.sectorToBlock(sectorIndex) + relativeBlockIndex
-            val blockData = mifare.readBlock(absoluteBlockIndex)
-            sendSuccessToFlutter("onReadResult", mapOf(
-              "sector" to sectorIndex,
-              "block" to relativeBlockIndex,
-              "dataHex" to byteArrayToHexString(blockData)
-            ))
-          } else {
-            sendErrorToFlutter("AUTH_ERROR", "Gagal autentikasi sektor $sectorIndex.")
-          }
-        }
-        is PendingOperation.Write -> {
-          val (sectorIndex, relativeBlockIndex, data, key) = operation
-          if (mifare.authenticateSectorWithKeyA(sectorIndex, key)) {
-            val absoluteBlockIndex = mifare.sectorToBlock(sectorIndex) + relativeBlockIndex
-            mifare.writeBlock(absoluteBlockIndex, data)
-            sendSuccessToFlutter("onWriteResult", mapOf(
-              "sector" to sectorIndex,
-              "block" to relativeBlockIndex,
-              "success" to true
-            ))
-          } else {
-            sendErrorToFlutter("AUTH_ERROR", "Gagal autentikasi sektor $sectorIndex.")
-          }
-        }
-        is PendingOperation.Reset -> {
-          val key = operation.key
-          val zeroData = ByteArray(16) // Array 16 byte berisi nol
-          var sectorsReset = 0
-
-          for (i in 0 until mifare.sectorCount) {
-            if (mifare.authenticateSectorWithKeyA(i, key)) {
-              val blockCount = mifare.getBlockCountInSector(i)
-              for (j in 0 until blockCount) {
-                val trailerBlockIndex = blockCount - 1
-                if (j == trailerBlockIndex) continue
-
-                if (i == 0 && j == 0) continue
-
-                val blockIndex = mifare.sectorToBlock(i) + j
-                mifare.writeBlock(blockIndex, zeroData)
-              }
-              sectorsReset++
-            } else {
-              sendErrorToFlutter("AUTH_ERROR", "Gagal autentikasi Sektor $i. Reset dihentikan.")
-              return
-            }
-          }
-          sendSuccessToFlutter("onResetResult", mapOf("sectorsReset" to sectorsReset))
-        }
-        is PendingOperation.ReadMultiple -> {
-          val (targets, key) = operation
-          val results = mutableListOf<Map<String, Any>>()
-          val authenticatedSectors = mutableSetOf<Int>()
-
-          for (target in targets) {
-            val sectorIndex = target["sectorIndex"] ?: -1
-            val blockIndex = target["blockIndex"] ?: -1
-
-            if (sectorIndex == -1 || blockIndex == -1) continue
-
-            var authSuccess = authenticatedSectors.contains(sectorIndex)
-            if (!authSuccess) {
-              if (mifare.authenticateSectorWithKeyA(sectorIndex, key)) {
-                authenticatedSectors.add(sectorIndex)
-                authSuccess = true
-              }
-            }
-
-            if (authSuccess) {
-              try {
-                val absoluteBlockIndex = mifare.sectorToBlock(sectorIndex) + blockIndex
-                val blockData = mifare.readBlock(absoluteBlockIndex)
-                results.add(mapOf(
-                  "sector" to sectorIndex,
-                  "block" to blockIndex,
-                  "dataHex" to byteArrayToHexString(blockData),
-                  "success" to true
-                ))
-              } catch (e: IOException) {
-                results.add(mapOf(
-                  "sector" to sectorIndex,
-                  "block" to blockIndex,
-                  "error" to "Gagal baca blok: ${e.message}",
-                  "success" to false
-                ))
-              }
-            } else {
-              results.add(mapOf(
-                "sector" to sectorIndex,
-                "block" to blockIndex,
-                "error" to "Gagal autentikasi sektor",
-                "success" to false
-              ))
-            }
-          }
-          sendSuccessToFlutter("onMultiReadResult", mapOf("results" to results))
-        }
-        is PendingOperation.WriteMultiple -> {
-          val (targets, key) = operation
-          val results = mutableListOf<Map<String, Any>>()
-          val authenticatedSectors = mutableSetOf<Int>()
-
-          for (target in targets) {
-            val sectorIndex = target["sectorIndex"] as? Int ?: -1
-            val blockIndex = target["blockIndex"] as? Int ?: -1
-            val dataHex = target["dataHex"] as? String ?: ""
-
-            if (sectorIndex == -1 || blockIndex == -1 || dataHex.isEmpty()) continue
-
-            // Validasi keamanan di sisi native
-            val sectorTrailer = mifare.getBlockCountInSector(sectorIndex) - 1
-            if (blockIndex == sectorTrailer || (sectorIndex == 0 && blockIndex == 0)) {
-              results.add(mapOf(
-                "sector" to sectorIndex, "block" to blockIndex,
-                "error" to "Penulisan ke blok sistem dilarang", "success" to false
-              ))
-              continue
-            }
-
-            var authSuccess = authenticatedSectors.contains(sectorIndex)
-            if (!authSuccess) {
-              if (mifare.authenticateSectorWithKeyA(sectorIndex, key)) {
-                authenticatedSectors.add(sectorIndex)
-                authSuccess = true
-              }
-            }
-
-            if (authSuccess) {
-              try {
-                val absoluteBlockIndex = mifare.sectorToBlock(sectorIndex) + blockIndex
-                mifare.writeBlock(absoluteBlockIndex, hexStringToByteArray(dataHex))
-                results.add(mapOf(
-                  "sector" to sectorIndex, "block" to blockIndex, "success" to true
-                ))
-              } catch (e: IOException) {
-                results.add(mapOf(
-                  "sector" to sectorIndex, "block" to blockIndex,
-                  "error" to "Gagal tulis blok: ${e.message}", "success" to false
-                ))
-              }
-            } else {
-              results.add(mapOf(
-                "sector" to sectorIndex, "block" to blockIndex,
-                "error" to "Gagal autentikasi sektor", "success" to false
-              ))
-            }
-          }
-          sendSuccessToFlutter("onMultiWriteResult", mapOf("results" to results))
-        }
-        is PendingOperation.None -> { /* Do nothing */ }
+        is PendingOperation.ReadMultiple -> processReadMultiple(mifare, operation)
+        is PendingOperation.WriteMultiple -> processWriteMultiple(mifare, operation)
+        is PendingOperation.Reset -> processReset(mifare, operation)
+        is PendingOperation.None -> {}
       }
-    } catch (e: IOException) {
-      Log.e(TAG, "IOException saat operasi MIFARE: ${e.message}")
-      sendErrorToFlutter("IO_ERROR", "Kesalahan komunikasi dengan tag: ${e.message}")
     } catch (e: Exception) {
-      Log.e(TAG, "Exception saat operasi MIFARE: ${e.message}")
-      sendErrorToFlutter("UNKNOWN_ERROR", "Terjadi kesalahan: ${e.message}")
+      Log.e(TAG, "Koneksi ke tag terputus atau error lain: ${e.message}")
     } finally {
-      try {
-        mifare.close()
-      } catch (e: IOException) {
-        Log.e(TAG, "Error saat menutup koneksi MIFARE: ${e.message}")
+      try { mifare.close() } catch (e: IOException) { /* Abaikan error saat menutup */ }
+    }
+  }
+
+  private fun processReadMultiple(mifare: MifareClassic, session: PendingOperation.ReadMultiple) {
+    val authenticatedSectors = mutableSetOf<Int>()
+    val targetsToProcess = ArrayList(session.pendingTargets)
+
+    for (target in targetsToProcess) {
+      val sectorIndex = target["sectorIndex"]!!
+      val blockIndex = target["blockIndex"]!!
+
+      var authSuccess = authenticatedSectors.contains(sectorIndex)
+      if (!authSuccess) {
+        if (mifare.authenticateSectorWithKeyA(sectorIndex, session.key)) {
+          authenticatedSectors.add(sectorIndex)
+          authSuccess = true
+        }
       }
+      if (authSuccess) {
+        try {
+          val absoluteBlockIndex = mifare.sectorToBlock(sectorIndex) + blockIndex
+          val blockData = mifare.readBlock(absoluteBlockIndex)
+          session.accumulatedResults.add(mapOf("sector" to sectorIndex, "block" to blockIndex, "dataHex" to byteArrayToHexString(blockData), "success" to true))
+          session.pendingTargets.remove(target)
+        } catch (e: IOException) { /* Gagal baca, jangan hapus. Coba lagi nanti. */ }
+      }
+    }
+
+    if (session.pendingTargets.isEmpty()) {
+      sendSuccessToFlutter("onMultiReadResult", mapOf("results" to session.accumulatedResults))
+      pendingOperation = PendingOperation.None; sessionTagId = null
+    } else {
+      sendProgressUpdate("onReadProgressUpdate", session.originalTargets.size, session.accumulatedResults.size)
+    }
+  }
+
+  private fun processWriteMultiple(mifare: MifareClassic, session: PendingOperation.WriteMultiple) {
+    val authenticatedSectors = mutableSetOf<Int>()
+    val targetsToProcess = ArrayList(session.pendingTargets)
+
+    for (target in targetsToProcess) {
+      val sector = target["sectorIndex"] as Int
+      val block = target["blockIndex"] as Int
+      val dataHex = target["dataHex"] as String
+
+      val sectorTrailer = mifare.getBlockCountInSector(sector) - 1
+      if (block == sectorTrailer || (sector == 0 && block == 0)) {
+        session.accumulatedResults.add(mapOf("sector" to sector, "block" to block, "error" to "Penulisan ke blok sistem dilarang", "success" to false))
+        session.pendingTargets.remove(target)
+        continue
+      }
+
+      var authSuccess = authenticatedSectors.contains(sector)
+      if (!authSuccess) {
+        if (mifare.authenticateSectorWithKeyA(sector, session.key)) {
+          authenticatedSectors.add(sector)
+          authSuccess = true
+        }
+      }
+
+      if (authSuccess) {
+        try {
+          val absoluteBlockIndex = mifare.sectorToBlock(sector) + block
+          mifare.writeBlock(absoluteBlockIndex, hexStringToByteArray(dataHex))
+          session.accumulatedResults.add(mapOf("sector" to sector, "block" to block, "success" to true))
+          session.pendingTargets.remove(target)
+        } catch (e: IOException) { /* Gagal tulis, jangan hapus. Coba lagi nanti. */ }
+      }
+    }
+
+    if (session.pendingTargets.isEmpty()) {
+      sendSuccessToFlutter("onMultiWriteResult", mapOf("results" to session.accumulatedResults))
+      pendingOperation = PendingOperation.None; sessionTagId = null
+    } else {
+      sendProgressUpdate("onWriteProgressUpdate", session.originalTargets.size, session.accumulatedResults.size)
+    }
+  }
+
+  private fun processReset(mifare: MifareClassic, session: PendingOperation.Reset) {
+    if (session.totalSectors == null) {
+      session.totalSectors = mifare.sectorCount
+      session.pendingSectors = (0 until mifare.sectorCount).toMutableList()
+    }
+
+    val sectorsToProcess = ArrayList(session.pendingSectors)
+    val zeroData = ByteArray(16)
+
+    for (sector in sectorsToProcess) {
+      if (mifare.authenticateSectorWithKeyA(sector, session.key)) {
+        val blockCount = mifare.getBlockCountInSector(sector)
+        for (j in 0 until blockCount) {
+          val trailerBlockIndex = blockCount - 1
+          if (j == trailerBlockIndex || (sector == 0 && j == 0)) continue
+
+          val blockIndex = mifare.sectorToBlock(sector) + j
+          try {
+            mifare.writeBlock(blockIndex, zeroData)
+          } catch(e: IOException) {
+            // Jika satu blok gagal ditulis, anggap seluruh sektor gagal untuk dicoba lagi
+            // Keluar dari inner loop dan jangan hapus sektor dari pending list
+            return
+          }
+        }
+        session.pendingSectors.remove(sector)
+        session.completedSectors.add(sector)
+      }
+    }
+
+    if (session.pendingSectors.isEmpty()) {
+      sendSuccessToFlutter("onResetResult", mapOf("sectorsReset" to session.completedSectors.size))
+      pendingOperation = PendingOperation.None; sessionTagId = null
+    } else {
+      sendProgressUpdate("onResetProgressUpdate", session.totalSectors!!, session.completedSectors.size)
+    }
+  }
+
+  private fun sendProgressUpdate(method: String, total: Int, completed: Int) {
+    uiThreadHandler.post {
+      channel?.invokeMethod(method, mapOf("total" to total, "completed" to completed))
     }
   }
 
   private fun sendSuccessToFlutter(method: String, data: Map<String, Any>) {
-    uiThreadHandler.post {
-      channel?.invokeMethod(method, data)
-    }
+    uiThreadHandler.post { channel?.invokeMethod(method, data) }
   }
-
   private fun sendErrorToFlutter(errorCode: String, errorMessage: String) {
-    uiThreadHandler.post {
-      channel?.invokeMethod("onError", mapOf(
-        "errorCode" to errorCode,
-        "errorMessage" to errorMessage
-      ))
-    }
+    uiThreadHandler.post { channel?.invokeMethod("onError", mapOf("errorCode" to errorCode, "errorMessage" to errorMessage)) }
   }
-
-  private fun hexStringToByteArray(hex: String): ByteArray {
-    val len = hex.length
-    val data = ByteArray(len / 2)
+  private fun hexStringToByteArray(s: String): ByteArray {
+    val len = s.length; val data = ByteArray(len / 2)
     var i = 0
     while (i < len) {
-      data[i / 2] = ((Character.digit(hex[i], 16) shl 4) + Character.digit(hex[i + 1], 16)).toByte()
+      data[i / 2] = ((Character.digit(s[i], 16) shl 4) + Character.digit(s[i + 1], 16)).toByte()
       i += 2
     }
     return data
   }
-
-  private fun byteArrayToHexString(bytes: ByteArray): String {
-    val hexChars = CharArray(bytes.size * 2)
-    for (j in bytes.indices) {
-      val v = bytes[j].toInt() and 0xFF
-      hexChars[j * 2] = "0123456789ABCDEF"[v ushr 4]
-      hexChars[j * 2 + 1] = "0123456789ABCDEF"[v and 0x0F]
-    }
-    return String(hexChars)
+  private fun byteArrayToHexString(a: ByteArray): String {
+    val sb = StringBuilder(a.size * 2)
+    for (b in a) { sb.append(String.format("%02X", b)) }
+    return sb.toString()
   }
 }

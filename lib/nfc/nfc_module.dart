@@ -12,32 +12,6 @@ class NfcModule {
 
   Stream<NfcEvent>? get onNfcEvent => NfcModulePlatform.instance.onNfcEvent();
 
-  Future<String> prepareReadBlock({
-    required int sectorIndex,
-    required int blockIndex,
-    required String keyHex,
-  }) {
-    return NfcModulePlatform.instance.prepareReadBlock(
-      sectorIndex: sectorIndex,
-      blockIndex: blockIndex,
-      keyHex: keyHex,
-    );
-  }
-
-  Future<String> prepareWriteBlock({
-    required int sectorIndex,
-    required int blockIndex,
-    required String keyHex,
-    required String dataHex,
-  }) {
-    return NfcModulePlatform.instance.prepareWriteBlock(
-      sectorIndex: sectorIndex,
-      blockIndex: blockIndex,
-      keyHex: keyHex,
-      dataHex: dataHex,
-    );
-  }
-
   Future<String> prepareResetCard({required String keyHex}) {
     return NfcModulePlatform.instance.prepareResetCard(keyHex: keyHex);
   }
