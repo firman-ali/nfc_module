@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:nfc_module/nfc_module.dart';
-import 'package:nfc_module/nfc_result.dart';
 
 class NfcResetScreen extends StatefulWidget {
   const NfcResetScreen({super.key});
@@ -60,14 +59,10 @@ class _NfcResetScreenState extends State<NfcResetScreen> {
       setState(() {
         switch (event) {
           case NfcReadSuccess():
-            _status =
-                'Sukses Membaca Sektor ${event.sector}, Blok ${event.block}';
-            _result = 'Data (Hex): ${event.dataHex}';
+            throw UnimplementedError();
             break;
           case NfcWriteSuccess():
-            _status =
-                'Sukses Menulis ke Sektor ${event.sector}, Blok ${event.block}';
-            _result = 'Data berhasil ditulis.';
+            throw UnimplementedError();
             break;
           case NfcResetSuccess():
             _status = 'Kartu Berhasil Direset!';
@@ -77,6 +72,8 @@ class _NfcResetScreenState extends State<NfcResetScreen> {
             _status = 'Error: ${event.errorCode}';
             _result = event.errorMessage;
             break;
+          case NfcMultiBlockReadSuccess():
+            throw UnimplementedError();
         }
       });
     });

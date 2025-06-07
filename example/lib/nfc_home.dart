@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nfc_module/nfc_module.dart';
 
+import 'nfc_read_multiple_data_screen.dart';
 import 'nfc_read_write_screen.dart';
 import 'nfc_reset_screen.dart';
 
@@ -73,6 +74,19 @@ class _NfcHomeState extends State<NfcHome> {
               );
             },
             child: Text("NFC Reset Page"),
+          ),
+          SizedBox(height: 16.0),
+
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NfcReadMultipleDataScreen(),
+                ),
+              );
+            },
+            child: Text("NFC Multiple Read Data Page"),
           ),
         ],
       ),

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:nfc_module/nfc_module.dart';
-import 'package:nfc_module/nfc_result.dart';
 
 class NfcReadWriteScreen extends StatefulWidget {
   const NfcReadWriteScreen({super.key});
@@ -45,13 +44,13 @@ class _NfcReadWriteScreenState extends State<NfcReadWriteScreen> {
             _result = 'Data berhasil ditulis.';
             break;
           case NfcResetSuccess():
-            _status = 'Kartu Berhasil Direset!';
-            _result = '${event.sectorsReset} sektor telah dikosongkan.';
-            break;
+            throw UnimplementedError();
           case NfcError():
             _status = 'Error: ${event.errorCode}';
             _result = event.errorMessage;
             break;
+          case NfcMultiBlockReadSuccess():
+            throw UnimplementedError();
         }
       });
     });
