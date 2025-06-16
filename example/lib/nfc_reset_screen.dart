@@ -126,7 +126,7 @@ class _NfcResetScreenState extends State<NfcResetScreen> {
                 decoration: BoxDecoration(
                   color: Theme.of(
                     context,
-                  ).colorScheme.primaryContainer.withOpacity(0.5),
+                  ).colorScheme.primaryContainer.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(

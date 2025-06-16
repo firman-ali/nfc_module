@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
-import 'nfc_module_platform_interface.dart';
-import 'nfc_result.dart';
+import 'package:nfc_module/nfc_module.dart';
 
 class NfcModule {
   Future<String?> getPlatformVersion() {
@@ -44,5 +43,10 @@ class NfcModule {
 
   void dispose() {
     NfcModulePlatform.instance.dispose();
+  }
+
+  Future<NfcStatus> checkNfcStatus() async {
+    final status = await NfcModulePlatform.instance.checkNfcStatus();
+    return status;
   }
 }

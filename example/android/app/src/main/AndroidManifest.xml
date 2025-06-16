@@ -1,9 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Izin untuk menggunakan hardware NFC -->
     <uses-permission android:name="android.permission.NFC" />
+    <uses-feature android:name="android.hardware.nfc" android:required="false" />
 
-    <!-- Menyatakan bahwa aplikasi ini membutuhkan fitur NFC -->
-    <uses-feature android:name="android.nfc.Nfc" android:required="true" />
     <application
         android:label="nfc_module_example"
         android:name="${applicationName}"

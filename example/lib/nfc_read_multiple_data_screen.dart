@@ -133,7 +133,7 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
                 decoration: BoxDecoration(
                   color: Theme.of(
                     context,
-                  ).colorScheme.primaryContainer.withOpacity(0.5),
+                  ).colorScheme.primaryContainer.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -218,8 +218,8 @@ class _NfcReadMultipleDataScreenState extends State<NfcReadMultipleDataScreen> {
             final bool success = item['success'];
             return Card(
               color: success
-                  ? Colors.green.withOpacity(0.1)
-                  : Colors.red.withOpacity(0.1),
+                  ? Colors.green.withValues(alpha: 0.1)
+                  : Colors.red.withValues(alpha: 0.1),
               margin: const EdgeInsets.symmetric(vertical: 4.0),
               child: ListTile(
                 leading: Icon(

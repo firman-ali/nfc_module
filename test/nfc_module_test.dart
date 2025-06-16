@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nfc_module/nfc_module.dart';
+import 'package:nfc_module/src/nfc_module_method_channel.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 class MockNfcModulePlatform
@@ -48,6 +49,11 @@ class MockNfcModulePlatform
     required List<NfcWriteTarget> targets,
     required Uint8List keyBytes,
   }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<NfcStatus> checkNfcStatus() {
     throw UnimplementedError();
   }
 }

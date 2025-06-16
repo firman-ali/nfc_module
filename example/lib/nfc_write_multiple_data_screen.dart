@@ -19,7 +19,6 @@ class _NfcWriteMultipleDataScreenState
   List<Map<String, dynamic>> _multiOpResults = [];
 
   String _status = 'Selamat datang!';
-  String _result = '-';
   String _progressStatus = '';
   final Uint8List _defaultKey = Uint8List.fromList([
     0xFF,
@@ -52,13 +51,11 @@ class _NfcWriteMultipleDataScreenState
             throw UnimplementedError();
           case NfcMultiBlockWriteSuccess():
             _status = 'Selesai Menulis ke Banyak Blok';
-            _result = 'Lihat detail hasil di bawah.';
             _multiOpResults = event.results;
             _progressStatus = '';
             break;
           case NfcError():
             _status = 'Error: ${event.errorCode}';
-            _result = event.errorMessage;
             _progressStatus = '';
             break;
           case NfcProgressUpdate():
@@ -201,7 +198,6 @@ class _NfcWriteMultipleDataScreenState
         );
         setState(() {
           _status = message;
-          _result = 'Menunggu tag...';
           _multiOpResults = [];
         });
       } catch (e) {
@@ -214,7 +210,6 @@ class _NfcWriteMultipleDataScreenState
     await _nfcModule.cancelOperation();
     setState(() {
       _status = 'Operasi dibatalkan. Siap untuk perintah baru.';
-      _result = '-';
       _progressStatus = '';
     });
   }
@@ -236,7 +231,7 @@ class _NfcWriteMultipleDataScreenState
                 decoration: BoxDecoration(
                   color: Theme.of(
                     context,
-                  ).colorScheme.primaryContainer.withOpacity(0.5),
+                  ).colorScheme.primaryContainer.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -313,8 +308,8 @@ class _NfcWriteMultipleDataScreenState
             final bool isRead = item.containsKey('dataBytes');
             return Card(
               color: success
-                  ? Colors.green.withOpacity(0.1)
-                  : Colors.red.withOpacity(0.1),
+                  ? Colors.green.withValues(alpha: 0.1)
+                  : Colors.red.withValues(alpha: 0.1),
               margin: const EdgeInsets.symmetric(vertical: 4.0),
               child: ListTile(
                 leading: Icon(

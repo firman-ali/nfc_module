@@ -4,6 +4,7 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'nfc_module_method_channel.dart';
 import 'nfc_result.dart';
+import 'nfc_status.dart';
 
 class NfcReadTarget {
   const NfcReadTarget({required this.sectorIndex, required this.blockIndex});
@@ -94,5 +95,9 @@ abstract class NfcModulePlatform extends PlatformInterface {
     throw UnimplementedError(
       'prepareWriteMultipleBlocks() has not been implemented.',
     );
+  }
+
+  Future<NfcStatus> checkNfcStatus() {
+    throw UnimplementedError('checkNfcStatus() has not been implemented.');
   }
 }

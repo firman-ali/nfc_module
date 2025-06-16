@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'nfc_module_platform_interface.dart';
 import 'nfc_result.dart';
+import 'nfc_status.dart';
 
 /// An implementation of [NfcModulePlatform] that uses method channels.
 class MethodChannelNfcModule extends NfcModulePlatform {
@@ -145,5 +146,23 @@ class MethodChannelNfcModule extends NfcModulePlatform {
       'targets': targetMaps,
       'keyBytes': keyBytes,
     });
+  }
+
+  @override
+  Future<NfcStatus> checkNfcStatus() async {
+    try {
+      final String? status = await methodChannel.invokeMethod('checkNfcStatus');
+
+      switch (status) {
+        case 'enabled':
+          return NfcStatus.enabled;
+        case 'disabled':
+          return NfcStatus.disabled;
+        default:
+          return NfcStatus.notSupported;
+      }
+    } on PlatformException catch (e) {
+      return NfcStatus.notSupported;
+    }
   }
 }
