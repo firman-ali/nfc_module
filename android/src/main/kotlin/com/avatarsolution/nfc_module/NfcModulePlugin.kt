@@ -139,6 +139,15 @@ class NfcModulePlugin: FlutterPlugin, ActivityAware, MethodCallHandler, NfcAdapt
         "cancelOperation" -> {
           result.success("Operasi dibatalkan.")
         }
+        "checkNfcStatus" -> {
+          val status = when (nfcAdapter?.isEnabled) {
+            true -> "enabled"
+            false -> "disabled"
+            null -> "not_supported"
+            else -> "not_supported"
+          }
+          result.success(status)
+        }
         else -> result.notImplemented()
       }
     } catch (e: Exception) {
